@@ -1,0 +1,53 @@
+#fly -t local sp -p website-pipeline -c ci/website-pipeline.yml -v d-repo=dorukakinci/kerimdorukakinci.com -v d-username=xxxx -v d-password=xxxx
+
+resources:
+  - name: repo-website
+    type: git
+    source:
+      uri: "https://github.com/DorukAkinci/kerimdorukakinci.com"
+      branch: master
+      tag_filter: "*"
+
+  - name: image
+    type: docker-image
+    icon: docker
+    source:
+      repository: ((d-repo))
+      username: ((d-username))
+      password: ((d-password))
+
+jobs:
+  - name: init
+    plan:
+      - get: repo-website
+        trigger: true
+
+      - task: check-latest-tag-version
+        config:
+          inputs:
+            - name: repo-website
+          platform: linux
+          image_resource:
+            type: registry-image
+            source: { repository: alpine/git }
+          run:
+            path: sh
+            args:
+              - -cx
+              - |
+                cd repo-website
+                ls -l
+                cat ./.git/ref
+
+  - name: build
+    plan:
+      - get: repo-website
+        passed:
+          - init
+        trigger: true
+
+      - put: image
+        params:
+          build: repo-website
+          tag_file: repo-website/.git/ref
+          tag_as_latest: true
