@@ -6,9 +6,15 @@ resource_types:
   source:
     repository: buildo/concourse-s3-sync
 
+- name: key-value
+  type: registry-image
+  source:
+    repository: gstack/keyval-resource
+
 resources:
   - name: repo-website
     type: git
+    icon: github
     source:
       uri: "https://github.com/DorukAkinci/kerimdorukakinci.com"
       branch: master
@@ -24,11 +30,16 @@ resources:
 
   - name: s3-website-bucket
     type: s3-sync
+    icon: aws
     source:
       bucket: www.kerimdorukakinci.com
       region_name: eu-central-1
       access_key_id: ((s3-access-key))
       secret_access_key: ((s3-secret-key))
+
+  - name: build-info
+    type: key-value
+    icon: tag
 
 jobs:
   - name: init
@@ -40,6 +51,8 @@ jobs:
         config:
           inputs:
             - name: repo-website
+          outputs:
+            - name: build-info
           platform: linux
           image_resource:
             type: registry-image
@@ -51,11 +64,21 @@ jobs:
               - |
                 cd repo-website
                 ls -l
-                cat ./.git/ref
+                git tag -l | tail -n 1 > ../build-info/version
+                cat ../build-info/version
+
+      - put: build-info
+        params:
+          directory: build-info
 
   - name: build
     plan:
       - get: repo-website
+        passed:
+          - init
+        trigger: false
+
+      - get: build-info
         passed:
           - init
         trigger: true
@@ -65,14 +88,12 @@ jobs:
           skip_download: true
         params:
           build: repo-website
-          tag_file: repo-website/.git/ref
+          tag_file: build-info/version
           tag_as_latest: true
 
   - name: deploy
     plan:
       - get: repo-website
-        passed:
-          - build
         trigger: true
 
       - put: s3-website-bucket
