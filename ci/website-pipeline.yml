@@ -1,5 +1,11 @@
 #fly -t local sp -p website-pipeline -c ci/website-pipeline.yml -v d-repo=dorukakinci/kerimdorukakinci.com -v d-username=xxxx -v d-password=xxxx
 
+resource_types:
+- name: s3-sync
+  type: registry-image
+  source:
+    repository: buildo/concourse-s3-sync
+
 resources:
   - name: repo-website
     type: git
@@ -15,6 +21,14 @@ resources:
       repository: ((d-repo))
       username: ((d-username))
       password: ((d-password))
+
+  - name: s3-website-bucket
+    type: s3-sync
+    source:
+      bucket: www.kerimdorukakinci.com
+      region_name: eu-central-1
+      access_key_id: ((s3-access-key))
+      secret_access_key: ((s3-secret-key))
 
 jobs:
   - name: init
@@ -47,7 +61,24 @@ jobs:
         trigger: true
 
       - put: image
+        get_params:
+          skip_download: true
         params:
           build: repo-website
           tag_file: repo-website/.git/ref
           tag_as_latest: true
+
+  - name: deploy
+    plan:
+      - get: repo-website
+        passed:
+          - build
+        trigger: true
+
+      - put: s3-website-bucket
+        get_params:
+          skip_download: true
+        params:
+          source: repo-website
+          options:
+            - --delete
