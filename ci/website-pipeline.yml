@@ -1,4 +1,4 @@
-#fly -t local sp -p website-pipeline -c ci/website-pipeline.yml -v d-repo=dorukakinci/kerimdorukakinci.com -v d-username=xxxx -v d-password=xxxx
+#fly -t local sp -p website-pipeline -c ci/website-pipeline.yml -v d-repo=dorukakinci/kerimdorukakinci.com -v d-username=xxxx -v d-password=xxxx -v s3-access-key=xxxx -v s3-secret-key=xxxx
 
 resource_types:
 - name: s3-sync
