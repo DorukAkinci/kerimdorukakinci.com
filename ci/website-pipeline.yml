@@ -118,6 +118,7 @@ jobs:
                 rm -f README.md
                 rm -f LICENSE
                 rm -f Dockerfile
+                rm -f .dockerignore
                 echo "Final output: " && ls -l
 
       - put: s3-website-bucket
