@@ -96,10 +96,34 @@ jobs:
       - get: repo-website
         trigger: true
 
+      - task: remove-unnecessary-files   # workaround for s3 sync issue
+        config:
+          inputs:
+            - name: repo-website
+          outputs:
+            - name: repo-website
+          platform: linux
+          image_resource:
+            type: registry-image
+            source: { repository: busybox }
+          run:
+            path: sh
+            args:
+              - -cx
+              - |
+                cd repo-website
+                ls -l
+                rm -rf .git
+                rm -rf ci
+                rm -f README.md
+                rm -f LICENSE
+                rm -f Dockerfile
+                echo "Final output: " && ls -l
+
       - put: s3-website-bucket
         get_params:
           skip_download: true
         params:
           source: repo-website
           options:
-            - --delete
+            - --delete ## is not working for some reason
