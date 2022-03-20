@@ -1,4 +1,22 @@
-#fly -t local sp -p website-pipeline -c ci/website-pipeline.yml -v d-repo=dorukakinci/kerimdorukakinci.com -v d-username=xxxx -v d-password=xxxx -v s3-access-key=xxxx -v s3-secret-key=xxxx
+#fly -t local sp -p website-pipeline -c ci/website-pipeline.yml -v d-repo=dorukakinci/kerimdorukakinci.com -v d-username=xxxx -v d-password=xxxx -v s3-access-key=xxxx -v s3-secret-key=xxxx -v slack-webhook-url=xxxx
+
+slack-hook: &slack-hook
+  on_success:
+    put: send-slack-notification
+    params:
+      alert_type: success
+  on_failure:
+    put: send-slack-notification
+    params:
+      alert_type: failed
+  on_abort:
+    put: send-slack-notification
+    params:
+      alert_type: aborted
+  on_error:
+    put: send-slack-notification
+    params:
+      alert_type: errored
 
 resource_types:
 - name: s3-sync
@@ -10,6 +28,11 @@ resource_types:
   type: registry-image
   source:
     repository: gstack/keyval-resource
+
+- name: slack-notifications
+  type: registry-image
+  source:
+    repository: arbourd/concourse-slack-alert-resource
 
 resources:
   - name: repo-website
@@ -40,6 +63,12 @@ resources:
   - name: build-info
     type: key-value
     icon: tag
+
+  - name: send-slack-notification
+    type: slack-notifications
+    icon: slack
+    source:
+      url: ((slack-webhook-url))
 
 jobs:
   - name: init
@@ -72,6 +101,7 @@ jobs:
           directory: build-info
 
   - name: build
+    <<: *slack-hook
     plan:
       - get: repo-website
         passed:
@@ -92,6 +122,7 @@ jobs:
           tag_as_latest: true
 
   - name: deploy
+    <<: *slack-hook
     plan:
       - get: repo-website
         trigger: true
